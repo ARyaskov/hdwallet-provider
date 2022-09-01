@@ -55,9 +55,9 @@ export class NonceSubprovider extends SubProvider {
               const rawTx = ethUtil.toBuffer(payload.params[0]);
               const tx = buildTransaction(rawTx, networkId);
               // extract address
-              const address = ethUtil.bufferToHex(tx.getSenderAddress());
+              const address = ethUtil.bufferToHex(tx.getSenderAddress().toBuffer());
               // extract nonce and increment
-              let nonce = ethUtil.bufferToInt(tx.nonce);
+              let nonce = ethUtil.bufferToInt(tx.nonce.toBuffer());
               nonce++;
               // dont update our record on the nonce until the submit was successful
               // update cache

@@ -13,7 +13,10 @@ import { GetTransportFunction, LedgerSubprovider } from "./ledger.subprovider";
 import FetchSubprovider = require("web3-provider-engine/subproviders/fetch");
 import { PollingBlockTracker } from "./block-tracker/polling";
 import { Engine } from "./engine";
-import {AbstractProvider} from 'web3-core'
+import {AbstractProvider, RequestArguments} from 'web3-core'
+import {JsonRpcPayload, JsonRpcResponse} from "web3-core-helpers";
+import Web3ProviderEngine from "web3-provider-engine";
+import * as util from "util";
 
 export interface MnemonicOptions {
   mnemonic: string;
@@ -78,8 +81,8 @@ export class HDWalletProvider implements AbstractProvider {
     });
     this.getAddresses = () => {
       return new Promise<string[]>((resolve, reject) => {
-        signer.getAccounts((error, accounts) => {
-          error ? reject(error) : resolve(accounts);
+        signer.getAccounts( (error: Error|null|undefined, accounts?: string[]) => {
+          error ? reject(error) : resolve(accounts!);
         });
       });
     };
@@ -97,11 +100,11 @@ export class HDWalletProvider implements AbstractProvider {
     engine.start();
   }
 
-  send(payload: ProviderEngine.JsonRPCRequest, callback: ProviderEngine.Callback<ProviderEngine.JsonRPCResponse>): void {
-    this.engine.sendAsync(payload, callback);
+  send(payload: JsonRpcPayload, callback: (error: Error | null, result?: JsonRpcResponse) => unknown): void {
+    this.engine.sendAsync(payload as Web3ProviderEngine.JsonRPCRequest, callback as Web3ProviderEngine.Callback<Web3ProviderEngine.JsonRPCResponse>)
   }
 
-  sendAsync(payload: ProviderEngine.JsonRPCRequest, callback: ProviderEngine.Callback<ProviderEngine.JsonRPCResponse>): void {
-    this.engine.sendAsync(payload, callback);
+  sendAsync(payload: JsonRpcPayload, callback?: (error: Error | null, result?: JsonRpcResponse) => Promise<unknown> | void): void {
+    this.engine.sendAsync(payload as Web3ProviderEngine.JsonRPCRequest, callback as Web3ProviderEngine.Callback<Web3ProviderEngine.JsonRPCResponse>)
   }
 }

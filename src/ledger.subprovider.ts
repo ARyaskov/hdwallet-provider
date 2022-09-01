@@ -3,8 +3,9 @@ import Transport from "@ledgerhq/hw-transport";
 import { componentsFromPath, DEFAULT_PATH, normalizePath } from "./path.util";
 import AppEth from "@ledgerhq/hw-app-eth";
 import { createPayload, stripHexPrefix } from "./util";
-import { TxData } from "ethereumjs-tx";
+import {FeeMarketEIP1559TxData, TxData} from "@ethereumjs/tx";
 import { buildTransaction } from "./util/transaction.util";
+import {BN} from "ethereumjs-util";
 
 export type GetTransportFunctionSimple<A> = () => Transport<A>;
 export type GetTransportFunctionPromise<A> = () => Promise<Transport<A>>;
@@ -83,36 +84,34 @@ export class LedgerSubprovider extends HookedWalletSubprovider {
       }
     }
 
-    async function signTransaction(networkId: number, txData: TxData & { from: string }) {
+    async function signTransaction(networkId: number, txData: FeeMarketEIP1559TxData & { from: string }) {
       const addressToPath = await getAddressToPath();
       const path = addressToPath.get(txData.from.toLowerCase());
       if (!path) throw new Error("address unknown '" + txData.from + "'");
       const transport = await getTransport();
       try {
         const eth = new AppEth(transport);
+        txData.v = new BN.BN(networkId)
+        txData.r = Buffer.from([])
+        txData.s = Buffer.from([])
         const tx = buildTransaction(txData, networkId);
-
-        // Set the EIP155 bits
-        tx.raw[6] = Buffer.from([networkId]); // v
-        tx.raw[7] = Buffer.from([]); // r
-        tx.raw[8] = Buffer.from([]); // s
 
         // Pass hex-rlp to ledger for signing
         const result = await eth.signTransaction(path, tx.serialize().toString("hex"));
-
-        // Store signature in transaction
-        tx.v = Buffer.from(result.v, "hex");
-        tx.r = Buffer.from(result.r, "hex");
-        tx.s = Buffer.from(result.s, "hex");
-
-        // EIP155: v should be chain_id * 2 + {35, 36}
-        const signedChainId = Math.floor((tx.v[0] - 35) / 2);
-        const validChainId = networkId & 0xff; // FIXME this is to fixed a current workaround that app don't support > 0xff
-        if (signedChainId !== validChainId) {
-          throw new InvalidNetworkIdError(
-            `Invalid networkId signature returned. Expected: ${networkId}, Got: ${signedChainId}`
-          );
-        }
+        //
+        // // Store signature in transaction
+        // tx.v = Buffer.from(result.v, "hex");
+        // tx.r = Buffer.from(result.r, "hex");
+        // tx.s = Buffer.from(result.s, "hex");
+        //
+        // // EIP155: v should be chain_id * 2 + {35, 36}
+        // const signedChainId = Math.floor((tx.v[0] - 35) / 2);
+        // const validChainId = networkId & 0xff; // FIXME this is to fixed a current workaround that app don't support > 0xff
+        // if (signedChainId !== validChainId) {
+        //   throw new InvalidNetworkIdError(
+        //     `Invalid networkId signature returned. Expected: ${networkId}, Got: ${signedChainId}`
+        //   );
+        // }
 
         return `0x${tx.serialize().toString("hex")}`;
       } finally {
